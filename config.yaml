@@ -1,0 +1,19 @@
+database:
+  host: '127.0.0.1'
+  user: 'root'
+  password: ''
+  database: 'typhon'
+cos:
+  SecretId: ''
+  SecretKey: ''
+  Bucket: ''
+  Region: ''
+email:
+  addresser: ''
+  user: ''
+  pass: ''
+token:
+  accessTokenKey: 'typhon_access_token_key'
+  refreshTokenKey: 'typhon_refresh_token_key'
+  accessTokenOutTime: '7d'
+  refreshTokenOutTime: '14d'
