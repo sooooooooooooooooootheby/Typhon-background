@@ -246,32 +246,41 @@ exports.updateUserInfo = (req, res) => {
 
     let sqlStr = `UPDATE user SET name = ?, introduction = ?, place = ?, website = ? WHERE uid = ?`;
     let params = [name, introduction, place, website, uid];
+
+    function uploadDate(sqlStr, params) {
+        db.query(sqlStr, params, (err, results) => {
+            if (err) {
+                console.log(err);
+                return res.status(500).json({ code: 0, message: "服务器错误" });
+            }
+
+            res.status(200).json({ code: 1, message: "更新成功" });
+        });
+    }
+
     if (background_image) {
         // 只有背景的情况
         sqlStr = `UPDATE user SET background_image = ?, name = ?, introduction = ?, place = ?, website = ? WHERE uid = ?`;
         params = [background_image, ...params];
+        uploadDate(sqlStr, params);
+        return;
     }
 
     if (head) {
         // 只有头像的情况
         sqlStr = `UPDATE user SET head = ?, name = ?, introduction = ?, place = ?, website = ? WHERE uid = ?`;
         params = [head, ...params];
+        uploadDate(sqlStr, params);
+        return;
     }
 
     if (background_image && head) {
         // 背景和头像都有的情况
         sqlStr = `UPDATE user SET background_image = ?, head = ?, name = ?, introduction = ?, place = ?, website = ? WHERE uid = ?`;
         params = [background_image, head, ...params];
+        uploadDate(sqlStr, params);
+        return;
     }
-
-    db.query(sqlStr, params, (err, results) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).json({ code: 0, message: "服务器错误" });
-        }
-
-        res.status(200).json({ code: 1, message: "更新成功" });
-    });
 };
 
 // 获取用户信息
