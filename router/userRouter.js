@@ -13,6 +13,8 @@ router.post("/login", userConnection.login);
 router.post("/logout", verifyToken, userConnection.logout);
 // 更新AccessToken
 router.post("/updateAccessToken", userConnection.updateAccessToken);
+// 升级状态
+router.post("/updateStatus", verifyToken, userConnection.updateStatus);
 // 更新用户信息
 router.post("/updateUserInfo", verifyToken, userConnection.updateUserInfo);
 

@@ -4,9 +4,13 @@ const start = Date.now();
 const express = require("express");
 const cors = require("cors");
 const app = express();
+const bodyParser = require('body-parser');
 
 const port = 4000;
 
+// 修改请求体大小
+app.use(bodyParser.json({ limit: '5mb' }));
+app.use(bodyParser.urlencoded({ limit: '5mb', extended: true }));
 // Cors 跨域
 // cross-domain
 app.use(cors());

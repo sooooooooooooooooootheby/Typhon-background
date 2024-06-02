@@ -22,69 +22,78 @@ exports.register = (req, res) => {
         return res.status(400).json({ code: 0, message: "客户端数据错误" });
     }
 
-    // 验证码验证
-    // 判断验证码是否为纯数字
-    let numCode = null;
-    let mixCode = null;
-    if (/^\d+$/.test(code)) {
-        numCode = code;
-    } else {
-        mixCode = code;
-    }
-    const verifyCodeStr = `SELECT * FROM code WHERE email = ?`;
-    db.query(verifyCodeStr, [email], (err, results) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).json({ code: 0, message: "服务器错误" });
-        }
-
-        if ((numCode && numCode !== results[0].numCode) || (mixCode && mixCode !== results[0].mixCode)) {
-            return res.status(200).json({ code: 0, message: "验证码错误" });
-        }
-    });
-
-    // 用户名密码格式验证
-    const usernameRegex = /^[a-zA-Z0-9_-]{3,16}$/;
-    if (!usernameRegex.test(username)) {
-        return res.status(200).json({ code: 0, message: "用户名必须由3到16个字符组成，允许使用字母、数字、下划线和破折号。" });
-    }
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
-    if (!passwordRegex.test(password)) {
-        return res.status(200).json({ code: 0, message: "密码必须至少包含一个小写字母、一个大写字母和一个数字，且长度为8-20位。" });
-    }
-
-    // 检查用户名冲突
-    const verifyUsernameStr = `SELECT username FROM user WHERE username = ?`;
-    db.query(verifyUsernameStr, [username], (err, results) => {
+    // 邮箱验证
+    const verifyEmail = `SELECT email FROM user WHERE email = ?`;
+    db.query(verifyEmail, [email], (err, results) => {
         if (err) {
             console.log(err);
             return res.status(500).json({ code: 0, message: "服务器错误" });
         }
 
         if (results.length > 0) {
-            return res.status(200).json({ code: 0, message: "用户名已被注册" });
-        }
-    });
-
-    // 生成随机名字和头像，对密码进行加盐哈希加密
-    const name = "用户" + publicFunction.generateRandomString(10);
-    const head = publicFunction.generateRandomHead();
-    let saltPassword = username + password + "typhon";
-    saltPassword = Base64.stringify(sha256(saltPassword));
-
-    // 用户信息写入数据库
-    const registerStr = `INSERT INTO user (username, password, email, name, head) VALUES (?, ?, ?, ?, ?)`;
-    db.query(registerStr, [username, saltPassword, email, name, head], (err, results) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).json({ code: 0, message: "服务器错误" });
+            return res.status(200).json({ code: 0, message: "邮箱已被注册" });
         }
 
-        if (results.length === 0) {
-            return res.status(200).json({ code: 0, message: "注册失败，请联系管理员" });
+        // 验证码验证
+        // 判断验证码是否为纯数字
+        let numCode = null;
+        let mixCode = null;
+        if (/^\d+$/.test(code)) {
+            numCode = code;
+        } else {
+            mixCode = code;
         }
+        const verifyCodeStr = `SELECT * FROM code WHERE email = ?`;
+        db.query(verifyCodeStr, [email], (err, results) => {
+            if (err) {
+                console.log(err);
+                return res.status(500).json({ code: 0, message: "服务器错误" });
+            }
 
-        res.status(200).json({ code: 1, message: "注册成功" });
+            if ((numCode && numCode !== results[0].numCode) || (mixCode && mixCode !== results[0].mixCode)) {
+                return res.status(200).json({ code: 0, message: "验证码错误" });
+            }
+
+            // 用户名密码格式验证
+            const usernameRegex = /^[a-zA-Z0-9_-]{3,16}$/;
+            if (!usernameRegex.test(username)) {
+                return res.status(200).json({ code: 0, message: "用户名必须由3到16个字符组成，允许使用字母、数字、下划线和破折号。" });
+            }
+
+            // 检查用户名冲突
+            const verifyUsernameStr = `SELECT username FROM user WHERE username = ?`;
+            db.query(verifyUsernameStr, [username], (err, results) => {
+                if (err) {
+                    console.log(err);
+                    return res.status(500).json({ code: 0, message: "服务器错误" });
+                }
+
+                if (results.length > 0) {
+                    return res.status(200).json({ code: 0, message: "用户名已被注册" });
+                }
+
+                // 生成随机名字和头像，对密码进行加盐哈希加密
+                const name = "用户" + publicFunction.generateRandomString(10);
+                const head = publicFunction.generateRandomHead();
+                let saltPassword = username + password + "typhon";
+                saltPassword = Base64.stringify(sha256(saltPassword));
+
+                // 用户信息写入数据库
+                const registerStr = `INSERT INTO user (username, password, email, name, head) VALUES (?, ?, ?, ?, ?)`;
+                db.query(registerStr, [username, saltPassword, email, name, head], (err, results) => {
+                    if (err) {
+                        console.log(err);
+                        return res.status(500).json({ code: 0, message: "服务器错误" });
+                    }
+
+                    if (results.length === 0) {
+                        return res.status(200).json({ code: 0, message: "注册失败，请联系管理员" });
+                    }
+
+                    res.status(200).json({ code: 1, message: "注册成功" });
+                });
+            });
+        });
     });
 };
 // 登录
@@ -93,8 +102,7 @@ exports.login = (req, res) => {
 
     // 非空、格式验证
     const usernameRegex = /^[a-zA-Z0-9_-]{3,16}$/;
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
-    if (!username || !password || !passwordRegex.test(password) || !usernameRegex.test(username)) {
+    if (!username || !password || !usernameRegex.test(username)) {
         return res.status(400).json({ code: 0, message: "客户端数据错误" });
     }
 
@@ -118,7 +126,7 @@ exports.login = (req, res) => {
         const accessToken = jwt.sign({ username: username, uid: results[0].uid }, config.token.accessTokenKey, { expiresIn: config.token.accessTokenOutTime });
         const refreshToken = jwt.sign({}, config.token.refreshTokenKey, { expiresIn: config.token.refreshTokenOutTime });
 
-        const saveRefreshToken = `INSERT INTO refresh_token VALUES (?, ?, ?, 1)`;
+        const saveRefreshToken = `INSERT INTO refresh_token VALUES (?, ?, ?)`;
         db.query(saveRefreshToken, [refreshToken, results[0].uid, username], (err, results) => {
             if (err) {
                 console.log(err);
@@ -207,7 +215,7 @@ exports.updateStatus = (req, res) => {
             return res.status(200).json({ code: 0, message: "用户错误" });
         }
 
-        if ((results[0].status = status)) {
+        if (results[0].status === status) {
             return res.status(200).json({ code: 0, message: "您已是" + status + "身份了" });
         }
 
@@ -242,11 +250,15 @@ exports.updateUserInfo = (req, res) => {
         // 只有背景的情况
         sqlStr = `UPDATE user SET background_image = ?, name = ?, introduction = ?, place = ?, website = ? WHERE uid = ?`;
         params = [background_image, ...params];
-    } else if (head) {
+    }
+
+    if (head) {
         // 只有头像的情况
         sqlStr = `UPDATE user SET head = ?, name = ?, introduction = ?, place = ?, website = ? WHERE uid = ?`;
         params = [head, ...params];
-    } else {
+    }
+
+    if (background_image && head) {
         // 背景和头像都有的情况
         sqlStr = `UPDATE user SET background_image = ?, head = ?, name = ?, introduction = ?, place = ?, website = ? WHERE uid = ?`;
         params = [background_image, head, ...params];
@@ -268,14 +280,36 @@ exports.getUserInfo = (req, res) => {
     const { username } = user || query;
 
     // 查询
-    const sqlStr = `SELECT uid, username, password, email, name, background_image, head, introduction, place, website, status FROM user WHERE username = ?`;
+    const sqlStr = `
+SELECT
+    u.uid,
+    u.username,
+    u.email,
+    u.name,
+    u.background_image,
+    u.head,
+    u.introduction,
+    u.place,
+    u.website,
+    u.status,
+    COUNT(DISTINCT l.lid) AS like_count,
+    COUNT(DISTINCT p.pid) AS post_count
+FROM
+    user u
+LEFT JOIN likes l ON u.uid = l.uid
+LEFT JOIN post p ON u.uid = p.uid
+WHERE
+    u.username = ?
+GROUP BY
+    u.uid;
+    `;
     db.query(sqlStr, [username], (err, results) => {
         if (err) {
             console.log(err);
             return res.status(500).json({ code: 0, message: "服务器错误" });
         }
 
-        res.status(200).json({ results });
+        res.status(200).json({ code: 1, results });
     });
 };
 // 获取新注册的用户
@@ -287,6 +321,6 @@ exports.getNewUser = (req, res) => {
             return res.status(500).json({ code: 0, message: "服务器错误" });
         }
 
-        res.status(200).json({ results });
+        res.status(200).json({ code: 1, results });
     });
 };

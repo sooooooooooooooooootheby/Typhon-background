@@ -19,8 +19,8 @@ exports.getPost = (req, res) => {
         const sqlStr = `
                 SELECT
 	                post.pid,
-	                post.post_cover,
-	                post.post_content,
+	                post.cover,
+	                post.content,
 	                post.create_time,
 	                USER.name,
 	                USER.head,
@@ -45,16 +45,16 @@ exports.getPost = (req, res) => {
 
         return;
     }
+    // 登录
+    const { uid } = req.user;
+    // 计算页数和返回贴子数(页面尺寸)
+    let { page, pageSize } = req.query;
 
     // 非空检测
     if (!page || !pageSize) {
         return res.status(400).json({ code: 0, message: "客户端数据错误" });
     }
 
-    // 登录
-    const { uid } = req.user;
-    // 计算页数和返回贴子数(页面尺寸)
-    let { page, pageSize } = req.query;
     page = parseInt(page);
     pageSize = parseInt(pageSize);
     const start = (page - 1) * pageSize;
@@ -63,8 +63,8 @@ exports.getPost = (req, res) => {
     const sqlStr = `
                 SELECT
                     post.pid,
-                    post.post_cover,
-                    post.post_content,
+                    post.cover,
+                    post.content,
                     post.create_time,
                     user.name,
                     user.head,
@@ -269,7 +269,7 @@ exports.getPostComment = (req, res) => {
 // 发布文章
 exports.publishPost = (req, res) => {
     const { uid } = req.user;
-    const { content } = req.body;
+    const { cover, content } = req.body;
 
     // 非空检测
     if (!content) {
@@ -277,7 +277,7 @@ exports.publishPost = (req, res) => {
     }
 
     // 没有封面的情况下，直接上传uid和content
-    if (!req.file) {
+    if (!cover) {
         const post = { uid, content };
         const sqlStr = "INSERT INTO post SET ?";
 
@@ -295,53 +295,19 @@ exports.publishPost = (req, res) => {
         return;
     }
 
-    // 有封面的情况下，需要先上传封面到cos
-    let filename = req.file.filename;
-    fs.readFile("./cache/" + filename, (err, data) => {
+    // 有封面的情况
+    const post = { uid, cover, content };
+    const sqlStr = "INSERT INTO post SET ?";
+
+    db.query(sqlStr, post, (err, results) => {
         if (err) {
-            console.log("读取失败" + err);
-            return;
+            console.log(err);
+            return res.status(500).json({ code: 0, message: "服务器错误" });
         }
 
-        let cosFilename = uid + filename;
-
-        // 将文件上传至cos
-        cos.putObject(
-            {
-                Bucket: config.cos.Bucket,
-                Region: config.cos.Region,
-                Key: "postCover/" + cosFilename,
-                StorageClass: "STANDARD",
-                Body: data,
-            },
-            function (err, data) {
-                if (err) {
-                    // 处理请求出错
-                    res.send({ code: 400, msg: "图片上传失败" + err });
-                } else {
-                    // 处理请求成功
-                    let cover = "https://" + data.Location;
-
-                    const post = { uid, cover, content };
-                    const sqlStr = "INSERT INTO post SET ?";
-                    db.query(sqlStr, post, (err, results) => {
-                        if (err) return console.log(err.message);
-
-                        if (results.affectedRows === 1) {
-                            res.status(200).json({ message: "发布成功" });
-                        }
-                    });
-
-                    // 删除文件
-                    fs.unlink("./cache/" + filename, (err, data) => {
-                        if (err) {
-                            console.log("删除失败" + err);
-                            return;
-                        }
-                    });
-                }
-            }
-        );
+        if (results.affectedRows === 1) {
+            res.status(200).json({ code: 1, message: "发布成功" });
+        }
     });
 };
 // 点赞
