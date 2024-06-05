@@ -4,6 +4,7 @@ const jsYaml = require("js-yaml");
 const Base64 = require("crypto-js/enc-base64");
 const sha256 = require("crypto-js/sha256");
 const jwt = require("jsonwebtoken");
+const axios = require("axios");
 
 // 公共方法
 const publicFunction = require("../function.js");
@@ -282,6 +283,76 @@ exports.updateUserInfo = (req, res) => {
         return;
     }
 };
+// 设置新密码
+exports.setPassword = (req, res) => {
+    const { retrieve, code, password } = req.body;
+
+    let type = "email";
+    const usernameRegex = /^[a-zA-Z0-9_-]{3,16}$/;
+    if (usernameRegex.test(this.retrieve)) {
+        type = "username";
+    }
+    let selectUserStr;
+    let setPasswordStr;
+    if (type === "username") {
+        selectUserStr = `SELECT username, email FROM user WHERE username = ?`;
+        setPasswordStr = `UPDATE user SET password = ? WHERE username = ?`;
+    } else if (type === "email") {
+        selectUserStr = `SELECT username, email FROM user WHERE email = ?`;
+        setPasswordStr = `UPDATE user SET password = ? WHERE email = ?`;
+    }
+
+    // 查询用户
+    db.query(selectUserStr, [retrieve], (err, results) => {
+        if (err) {
+            console.log(err);
+            return res.status(500).json({ code: 0, message: "服务器错误" });
+        }
+
+        if (results.length === 0) {
+            return res.status(200).json({ code: 0, message: "找不到用户" });
+        }
+
+        // 对密码进行加盐哈希加密
+        let saltPassword = results[0].username + password + "typhon";
+        saltPassword = Base64.stringify(sha256(saltPassword));
+
+        // 验证码验证
+        // 判断验证码是否为纯数字
+        let numCode = null;
+        let mixCode = null;
+        if (/^\d+$/.test(code)) {
+            numCode = code;
+        } else {
+            mixCode = code;
+        }
+        const verifyCodeStr = `SELECT * FROM code WHERE email = ?`;
+        db.query(verifyCodeStr, [results[0].email], (err, results) => {
+            if (err) {
+                console.log(err);
+                return res.status(500).json({ code: 0, message: "服务器错误" });
+            }
+
+            if ((numCode && numCode !== results[0].numCode) || (mixCode && mixCode !== results[0].mixCode)) {
+                return res.status(200).json({ code: 0, message: "验证码错误" });
+            }
+
+            // 设置密码
+            db.query(setPasswordStr, [saltPassword, retrieve], (err, results) => {
+                if (err) {
+                    console.log(err);
+                    return res.status(500).json({ code: 0, message: "服务器错误" });
+                }
+
+                if (results.length === 0) {
+                    return res.status(200).json({ code: 0, message: "设置失败，请联系管理员" });
+                }
+
+                res.status(200).json({ code: 1, message: "设置成功" });
+            });
+        });
+    });
+};
 
 // 获取用户信息
 exports.getUserInfo = (req, res) => {
@@ -331,5 +402,62 @@ exports.getNewUser = (req, res) => {
         }
 
         res.status(200).json({ code: 1, results });
+    });
+};
+// 查询用户名和邮箱是否存在
+exports.selectUsernameEmail = (req, res) => {
+    const { retrieve } = req.query;
+
+    let type = "email";
+    const usernameRegex = /^[a-zA-Z0-9_-]{3,16}$/;
+    if (usernameRegex.test(this.retrieve)) {
+        type = "username";
+    }
+    let sqlStr;
+    if (type === "username") {
+        sqlStr = `SELECT username, email FROM user WHERE username = ?`;
+    } else if (type === "email") {
+        sqlStr = `SELECT username, email FROM user WHERE email = ?`;
+    }
+
+    db.query(sqlStr, [retrieve], async (err, results) => {
+        if (err) {
+            console.log(err);
+            return res.status(500).json({ code: 0, message: "服务器错误" });
+        }
+
+        if (results.length === 0) {
+            return res.status(200).json({ code: 0, message: "找不到用户" });
+        }
+
+        try {
+            const response = await axios.post("http://127.0.0.1:4000/api/sendRetrieveEmail", { email: results[0].email });
+
+            let emailNamehead = results[0].email.split("@")[0].substring(0, 2);
+            let emailName = results[0].email.split("@")[0].substring(2);
+            emailNameStars = "";
+            for (let i = 0; i < emailName.length; i++) {
+                emailNameStars += "*";
+            }
+
+            let emailSuffix1head = results[0].email.split("@")[1].split(".")[0].substring(0, 1);
+            let emailSuffix1 = results[0].email.split("@")[1].split(".")[0].substring(1);
+            let emailSuffix2head = results[0].email.split("@")[1].split(".")[1].substring(0, 1);
+            let emailSuffix2 = results[0].email.split("@")[1].split(".")[1].substring(1);
+            emailSuffixStarsStart = "";
+            emailSuffixStarsEnd = "";
+            for (let i = 0; i < emailSuffix1.length; i++) {
+                emailSuffixStarsStart += "*";
+            }
+            for (let i = 0; i < emailSuffix2.length; i++) {
+                emailSuffixStarsEnd += "*";
+            }
+
+            let hideEmail = emailNamehead + emailNameStars + "@" + emailSuffix1head + emailSuffixStarsStart + "." + emailSuffix2head + emailSuffixStarsEnd;
+
+            res.status(200).json({ code: 1, message: `查询到${results.length}个用户`, hint: `验证码将发送到${hideEmail}邮箱` });
+        } catch (err) {
+            console.log(err);
+        }
     });
 };

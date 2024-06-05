@@ -17,10 +17,14 @@ router.post("/updateAccessToken", userConnection.updateAccessToken);
 router.post("/updateStatus", verifyToken, userConnection.updateStatus);
 // 更新用户信息
 router.post("/updateUserInfo", verifyToken, userConnection.updateUserInfo);
+// 设置新密码
+router.post("/setPassword", userConnection.setPassword)
 
 // 获取用户信息
 router.get("/getUserInfo", verifyToken, userConnection.getUserInfo);
 // 获取新注册的用户
 router.get("/getNewUser", userConnection.getNewUser);
+// 查询用户名和邮箱是否存在
+router.get("/selectUsernameEmail", userConnection.selectUsernameEmail)
 
 module.exports = router;
