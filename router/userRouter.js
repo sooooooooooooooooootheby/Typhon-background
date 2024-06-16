@@ -21,6 +21,8 @@ router.post("/updateUserInfo", verifyToken, userConnection.updateUserInfo);
 router.post("/setPassword", userConnection.setPassword);
 // 更新邮箱
 router.post("/updateEmail", verifyToken, userConnection.updateEmail);
+// 注销账户
+router.post("/deleteUser", verifyToken, userConnection.deleteUser);
 
 // 获取用户信息
 router.get("/getUserInfo", verifyToken, userConnection.getUserInfo);

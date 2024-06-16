@@ -8,6 +8,7 @@ const axios = require("axios");
 
 // 公共方法
 const publicFunction = require("../function.js");
+const { log } = require("console");
 
 // 读取配置文件
 const fileContents = fs.readFileSync("./config.yaml", "utf8");
@@ -408,6 +409,80 @@ exports.updateEmail = (req, res) => {
                 }
 
                 return res.status(200).json({ code: 1, message: "更新成功" });
+            });
+        });
+    });
+};
+// 注销账户
+exports.deleteUser = (req, res) => {
+    const { uid } = req.user;
+    const { email, code } = req.body;
+
+    // 非空、格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+        return res.status(400).json({ code: 0, message: "客户端数据错误" });
+    }
+
+    // 验证码验证
+    // 判断验证码是否为纯数字
+    let numCode = null;
+    let mixCode = null;
+    if (/^\d+$/.test(code)) {
+        numCode = code;
+    } else {
+        mixCode = code;
+    }
+    const verifyEmail = `SELECT numCode, mixCode FROM code WHERE email = ?`;
+    db.query(verifyEmail, [email], (err, results) => {
+        if (err) {
+            console.log(err);
+            return res.status(500).json({ code: 0, message: "服务器错误" });
+        }
+
+        if (results.length === 0) {
+            return res.status(200).json({ code: 0, message: "邮箱错误，请重新输入邮箱" });
+        }
+
+        if ((numCode && numCode !== results[0].numCode) || (mixCode && mixCode !== results[0].mixCode)) {
+            return res.status(200).json({ code: 0, message: "验证码错误" });
+        }
+
+        // 删除用户的文章
+        const deletePost = `DELETE FROM post WHERE uid = ?`;
+        db.query(deletePost, [uid], (err, results) => {
+            if (err) {
+                console.log(err);
+                return res.status(500).json({ code: 0, message: "服务器错误" });
+            }
+
+            // 删除用户的评论
+            const deletePost = `DELETE FROM comment WHERE uid = ?`;
+            db.query(deletePost, [uid], (err, results) => {
+                if (err) {
+                    console.log(err);
+                    return res.status(500).json({ code: 0, message: "服务器错误" });
+                }
+
+                // 删除用户的token
+                const deletePost = `DELETE FROM refresh_token WHERE uid = ?`;
+                db.query(deletePost, [uid], (err, results) => {
+                    if (err) {
+                        console.log(err);
+                        return res.status(500).json({ code: 0, message: "服务器错误" });
+                    }
+
+                    // 删除用户的数据
+                    const deleteUser = `DELETE FROM user WHERE uid = ?`;
+                    db.query(deleteUser, [uid], (err, results) => {
+                        if (err) {
+                            console.log(err);
+                            return res.status(500).json({ code: 0, message: "服务器错误" });
+                        }
+
+                        return res.status(200).json({ code: 1, message: "注销成功" });
+                    });
+                });
             });
         });
     });
