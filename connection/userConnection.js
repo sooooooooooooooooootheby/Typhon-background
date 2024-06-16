@@ -358,38 +358,57 @@ exports.updateEmail = (req, res) => {
     const { uid } = req.user;
     const { email, code } = req.body;
 
-    // 验证码验证
-    // 判断验证码是否为纯数字
-    let numCode = null;
-    let mixCode = null;
-    if (/^\d+$/.test(code)) {
-        numCode = code;
-    } else {
-        mixCode = code;
+    // 非空、格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+        return res.status(400).json({ code: 0, message: "客户端数据错误" });
     }
-    const verifyEmail = `SELECT numCode, mixCode FROM code WHERE email = ?`;
+
+    // 邮箱验证
+    const verifyEmail = `SELECT email FROM user WHERE email = ?`;
     db.query(verifyEmail, [email], (err, results) => {
         if (err) {
             console.log(err);
             return res.status(500).json({ code: 0, message: "服务器错误" });
         }
 
-        if (results.length === 0) {
-            return res.status(200).json({ code: 0, message: "邮箱错误，请重新输入邮箱" });
+        if (results.length > 0) {
+            return res.status(200).json({ code: 0, message: "邮箱已存在" });
         }
 
-        if ((numCode && numCode !== results[0].numCode) || (mixCode && mixCode !== results[0].mixCode)) {
-            return res.status(200).json({ code: 0, message: "验证码错误" });
+        // 验证码验证
+        // 判断验证码是否为纯数字
+        let numCode = null;
+        let mixCode = null;
+        if (/^\d+$/.test(code)) {
+            numCode = code;
+        } else {
+            mixCode = code;
         }
-
-        const updateEmail = `UPDATE user SET email = ? WHERE uid = ?`;
-        db.query(updateEmail, [email, uid], (err, results) => {
+        const verifyEmail = `SELECT numCode, mixCode FROM code WHERE email = ?`;
+        db.query(verifyEmail, [email], (err, results) => {
             if (err) {
                 console.log(err);
                 return res.status(500).json({ code: 0, message: "服务器错误" });
             }
 
-            return res.status(200).json({ code: 1, message: "更新成功" });
+            if (results.length === 0) {
+                return res.status(200).json({ code: 0, message: "邮箱错误，请重新输入邮箱" });
+            }
+
+            if ((numCode && numCode !== results[0].numCode) || (mixCode && mixCode !== results[0].mixCode)) {
+                return res.status(200).json({ code: 0, message: "验证码错误" });
+            }
+
+            const updateEmail = `UPDATE user SET email = ? WHERE uid = ?`;
+            db.query(updateEmail, [email, uid], (err, results) => {
+                if (err) {
+                    console.log(err);
+                    return res.status(500).json({ code: 0, message: "服务器错误" });
+                }
+
+                return res.status(200).json({ code: 1, message: "更新成功" });
+            });
         });
     });
 };

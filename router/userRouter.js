@@ -20,7 +20,7 @@ router.post("/updateUserInfo", verifyToken, userConnection.updateUserInfo);
 // 设置新密码
 router.post("/setPassword", userConnection.setPassword);
 // 更新邮箱
-router.post("/updateEmail", userConnection.updateEmail);
+router.post("/updateEmail", verifyToken, userConnection.updateEmail);
 
 // 获取用户信息
 router.get("/getUserInfo", verifyToken, userConnection.getUserInfo);
