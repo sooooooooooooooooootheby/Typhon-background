@@ -103,3 +103,17 @@
 接口地址：`/updateUserInfo`
 
 举例：`127.0.0.1/updateUserInfo`
+
+### 更新邮箱
+
+说明：此接口用于更新邮箱，需要 token。
+
+必要参数:
+
+-   `email`: 邮箱
+-   `code`: 验证码
+
+接口地址：`/updateEmail`
+
+举例：`127.0.0.1/updateEmail`
+

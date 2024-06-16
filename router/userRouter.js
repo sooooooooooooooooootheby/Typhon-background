@@ -18,7 +18,9 @@ router.post("/updateStatus", verifyToken, userConnection.updateStatus);
 // 更新用户信息
 router.post("/updateUserInfo", verifyToken, userConnection.updateUserInfo);
 // 设置新密码
-router.post("/setPassword", userConnection.setPassword)
+router.post("/setPassword", userConnection.setPassword);
+// 更新邮箱
+router.post("/updateEmail", userConnection.updateEmail);
 
 // 获取用户信息
 router.get("/getUserInfo", verifyToken, userConnection.getUserInfo);
