@@ -412,6 +412,7 @@ SELECT
     u.place,
     u.website,
     u.status,
+    u.create_time,
     COUNT(DISTINCT l.lid) AS like_count,
     COUNT(DISTINCT p.pid) AS post_count
 FROM
