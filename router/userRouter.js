@@ -17,10 +17,12 @@ router.post("/updateAccessToken", userConnection.updateAccessToken);
 router.post("/updateStatus", verifyToken, userConnection.updateStatus);
 // 更新用户信息
 router.post("/updateUserInfo", verifyToken, userConnection.updateUserInfo);
-// 设置新密码
+// 找回密码
 router.post("/setPassword", userConnection.setPassword);
 // 更新邮箱
 router.post("/updateEmail", verifyToken, userConnection.updateEmail);
+// 更新密码
+router.post("/updatePassword", verifyToken, userConnection.updatePassword);
 // 注销账户
 router.post("/deleteUser", verifyToken, userConnection.deleteUser);
 

@@ -284,7 +284,7 @@ exports.updateUserInfo = (req, res) => {
         return;
     }
 };
-// 设置新密码
+// 找回密码
 exports.setPassword = (req, res) => {
     const { retrieve, code, password } = req.body;
 
@@ -410,6 +410,54 @@ exports.updateEmail = (req, res) => {
 
                 return res.status(200).json({ code: 1, message: "更新成功" });
             });
+        });
+    });
+};
+// 更新密码
+exports.updatePassword = (req, res) => {
+    const { username } = req.user;
+    const { oldPassword, newPassword } = req.body;
+
+    // 非空验证
+    if (!oldPassword || !newPassword) {
+        return res.status(400).json({ code: 0, message: "客户端数据错误" });
+    }
+
+    // 对密码进行加盐哈希加密
+    let saltOldPassword = username + oldPassword + "typhon";
+    saltOldPassword = Base64.stringify(sha256(saltOldPassword));
+    let saltNewPassword = username + newPassword + "typhon";
+    saltNewPassword = Base64.stringify(sha256(saltNewPassword));
+
+    // 旧密码验证
+    const selectOldPassword = `SELECT password FROM user WHERE username = ?`;
+    db.query(selectOldPassword, [ username ], (err, results) => {
+        if (err) {
+            console.log(err);
+            return res.status(500).json({ code: 0, message: "服务器错误" });
+        }
+
+        if (results.length === 0) {
+            return res.status(200).json({ code: 0, message: "用户不存在，请重新登录" });
+        }
+
+        if (results[0].password != saltOldPassword) {
+            return res.status(200).json({ code: 0, message: "旧密码错误" });
+        }
+
+        // 设置密码
+        const setPasswordStr = `UPDATE user SET password = ? WHERE username = ?`
+        db.query(setPasswordStr, [ saltNewPassword, username ], (err, results) => {
+            if (err) {
+                console.log(err);
+                return res.status(500).json({ code: 0, message: "服务器错误" });
+            }
+
+            if (results.length === 0) {
+                return res.status(200).json({ code: 0, message: "修改失败，请联系管理员" });
+            }
+
+            res.status(200).json({ code: 1, message: "修改成功" });
         });
     });
 };
