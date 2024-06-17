@@ -431,7 +431,7 @@ exports.updatePassword = (req, res) => {
 
     // 旧密码验证
     const selectOldPassword = `SELECT password FROM user WHERE username = ?`;
-    db.query(selectOldPassword, [ username ], (err, results) => {
+    db.query(selectOldPassword, [username], (err, results) => {
         if (err) {
             console.log(err);
             return res.status(500).json({ code: 0, message: "服务器错误" });
@@ -446,8 +446,8 @@ exports.updatePassword = (req, res) => {
         }
 
         // 设置密码
-        const setPasswordStr = `UPDATE user SET password = ? WHERE username = ?`
-        db.query(setPasswordStr, [ saltNewPassword, username ], (err, results) => {
+        const setPasswordStr = `UPDATE user SET password = ? WHERE username = ?`;
+        db.query(setPasswordStr, [saltNewPassword, username], (err, results) => {
             if (err) {
                 console.log(err);
                 return res.status(500).json({ code: 0, message: "服务器错误" });
@@ -463,37 +463,29 @@ exports.updatePassword = (req, res) => {
 };
 // 注销账户
 exports.deleteUser = (req, res) => {
-    const { uid } = req.user;
-    const { email, code } = req.body;
+    const { username, uid } = req.user;
+    const { email, password } = req.body;
 
     // 非空、格式验证
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || !emailRegex.test(email)) {
+    if (!email || !emailRegex.test(email) || !password) {
         return res.status(400).json({ code: 0, message: "客户端数据错误" });
     }
 
-    // 验证码验证
-    // 判断验证码是否为纯数字
-    let numCode = null;
-    let mixCode = null;
-    if (/^\d+$/.test(code)) {
-        numCode = code;
-    } else {
-        mixCode = code;
-    }
-    const verifyEmail = `SELECT numCode, mixCode FROM code WHERE email = ?`;
-    db.query(verifyEmail, [email], (err, results) => {
+    // 对密码进行加盐哈希加密
+    let saltPassword = username + password + "typhon";
+    saltPassword = Base64.stringify(sha256(saltPassword));
+
+    // 检查邮箱密码是否正确
+    const loginStr = `SELECT uid FROM user WHERE email = ? AND password = ?`;
+    db.query(loginStr, [email, saltPassword], (err, results) => {
         if (err) {
             console.log(err);
             return res.status(500).json({ code: 0, message: "服务器错误" });
         }
 
         if (results.length === 0) {
-            return res.status(200).json({ code: 0, message: "邮箱错误，请重新输入邮箱" });
-        }
-
-        if ((numCode && numCode !== results[0].numCode) || (mixCode && mixCode !== results[0].mixCode)) {
-            return res.status(200).json({ code: 0, message: "验证码错误" });
+            return res.status(200).json({ code: 0, message: "账号或密码错误" });
         }
 
         // 删除用户的文章
