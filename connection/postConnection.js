@@ -32,7 +32,7 @@ exports.getPost = (req, res) => {
 	                INNER JOIN USER ON post.uid = USER.uid
                 ORDER BY
 	                post.create_time DESC
-	                LIMIT 1,5;
+	                LIMIT 0,5;
                 `;
         db.query(sqlStr, (err, results) => {
             if (err) {
